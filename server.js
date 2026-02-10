@@ -8,7 +8,6 @@ const app = express();
 app.use(cors());
 app.options('*', cors());
 
-
 const upload = multer({ dest: 'uploads/' });
 
 app.post('/convert', upload.single('video'), (req, res) => {
@@ -17,6 +16,13 @@ app.post('/convert', upload.single('video'), (req, res) => {
 
   ffmpeg.ffprobe(input, (err, data) => {
     const duration = data.format.duration;
+
+    // ✅ SERVER GUARD
+    if (duration > 180) {
+      fs.unlinkSync(input);
+      return res.status(400).send('Video too long');
+    }
+
     const speed = duration / 10;
 
     ffmpeg(input)
