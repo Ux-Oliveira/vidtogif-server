@@ -26,15 +26,20 @@ app.post('/convert', upload.single('video'), (req, res) => {
     const speed = duration / 10;
 
     ffmpeg(input)
-      .videoFilters([`setpts=PTS/${speed}`, 'fps=15', 'scale=480:-1'])
-      .toFormat('gif')
-      .save(output)
-      .on('end', () => {
-        res.download(output, 'converted.gif', () => {
-          fs.unlinkSync(input);
-          fs.unlinkSync(output);
-        });
-      });
+     .setStartTime('0')      
+     .outputOptions([
+     '-vf fps=15,scale=480:-1:flags=lanczos',
+    '-gifflags -transdiff'
+    ])
+     .toFormat('gif')
+     .save(output)
+     .on('end', () => {
+    res.download(output, 'converted.gif', () => {
+      fs.unlinkSync(input);
+      fs.unlinkSync(output);
+    });
+  });
+
   });
 });
 
