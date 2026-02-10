@@ -1,11 +1,12 @@
-const cors = require("cors");
-app.use(cors());
 const express = require('express');
 const multer = require('multer');
 const ffmpeg = require('fluent-ffmpeg');
 const fs = require('fs');
+const cors = require('cors');
 
 const app = express();
+app.use(cors());
+
 const upload = multer({ dest: 'uploads/' });
 
 app.post('/convert', upload.single('video'), (req, res) => {
