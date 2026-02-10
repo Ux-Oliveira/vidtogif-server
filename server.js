@@ -12,53 +12,42 @@ const upload = multer({ dest: 'uploads/' });
 
 app.post('/convert', upload.single('video'), (req, res) => {
   const input = req.file.path;
-  const palette = input + '_palette.png';
   const output = input + '.gif';
 
   ffmpeg.ffprobe(input, (err, data) => {
     const duration = data.format.duration;
 
-    //time safe guard
     if (duration > 180) {
       fs.unlinkSync(input);
       return res.status(400).send('Video too long');
     }
 
-    //only use first 10 seconds
-    const clipLength = Math.min(10, duration);
+    let command = ffmpeg(input)
+      .setStartTime(0)
+      .duration(10); // always cut to 10s first
 
-    //GENERATING PALETTE
-    ffmpeg(input)
-      .inputOptions([
-        '-ss 0',          //seeingk before decoding
-        `-t ${clipLength}`
-      ])
-      .outputOptions([
-        '-vf fps=10,scale=360:-1:flags=lanczos,palettegen'
-      ])
-      .save(palette)
+    if (duration > 10) {
+      // REAL SPEED UP (this is what was missing)
+      const speedFactor = duration / 10;
+
+      command = command.outputOptions([
+        `-filter:v setpts=${1 / speedFactor}*PTS,fps=12,scale=360:-1`
+      ]);
+    } else {
+      // FAST PATH — no time manipulation
+      command = command.outputOptions([
+        '-vf fps=12,scale=360:-1'
+      ]);
+    }
+
+    command
+      .toFormat('gif')
+      .save(output)
       .on('end', () => {
-
-      
-        ffmpeg(input)
-          .inputOptions([
-            '-ss 0',
-            `-t ${clipLength}`
-          ])
-          .input(palette)
-          .complexFilter([
-            'fps=10,scale=360:-1:flags=lanczos[x]',
-            '[x][1:v]paletteuse'
-          ])
-          .toFormat('gif')
-          .save(output)
-          .on('end', () => {
-            res.download(output, 'converted.gif', () => {
-              fs.unlinkSync(input);
-              fs.unlinkSync(output);
-              fs.unlinkSync(palette);
-            });
-          });
+        res.download(output, 'converted.gif', () => {
+          fs.unlinkSync(input);
+          fs.unlinkSync(output);
+        });
       });
   });
 });
